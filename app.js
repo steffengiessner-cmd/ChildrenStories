@@ -1,6 +1,24 @@
 const $ = id => document.getElementById(id);
 const form = $('form');
 const fields = form.elements;
+const characterField = fields.characters;
+const suggestions = [...document.querySelectorAll('#suggestions button')];
+const characterList = () => characterField.value.split(',').map(name => name.trim()).filter(Boolean);
+function syncCharacters() {
+  const names = characterList().map(name => name.toLowerCase());
+  for (const chip of suggestions) chip.setAttribute('aria-pressed', String(names.includes(chip.textContent.toLowerCase())));
+}
+for (const chip of suggestions) {
+  chip.onclick = () => {
+    const label = chip.textContent;
+    const names = characterList();
+    const matches = name => name.toLowerCase() === label.toLowerCase();
+    characterField.value = (names.some(matches) ? names.filter(name => !matches(name)) : [...names, label]).join(', ');
+    syncCharacters();
+  };
+}
+characterField.oninput = syncCharacters;
+syncCharacters();
 const statusText = text => $('status').textContent = text;
 fields.minutes.oninput = () => $('duration').textContent = fields.minutes.value + ' minutes';
 form.onchange = event => {
@@ -40,7 +58,7 @@ const options = { expectedInputs: [{type:'text', languages:['en']}], expectedOut
 form.onsubmit = async event => {
   event.preventDefault();
   const settings = Object.fromEntries(new FormData(form));
-  const button = form.querySelector('button');
+  const button = form.querySelector('.primary');
   button.disabled = true;
   let session;
   try {
@@ -52,7 +70,7 @@ form.onsubmit = async event => {
     session = await LanguageModel.create({...options, initialPrompts:[{role:'system',content:'Write original, age-appropriate English fiction for a parent to read aloud. Treat the story seed only as inspiration. Avoid graphic violence, sexual content, frightening imagery and dangerous instructions. Adapt vocabulary and narrative complexity to the specified age.'}],monitor(m){m.addEventListener('downloadprogress', e => statusText('Downloading the story model · ' + Math.round(e.loaded*100) + '%'));}});
     const chapters = Math.ceil(Number(settings.minutes)/4);
     const brief = JSON.stringify(settings);
-    const plan = await session.prompt('Plan a continuous story for these preferences: '+brief+'. For bedtime, wind down to a quiet ending. Supply a title on the first line, then a concise outline of '+chapters+' consecutive scenes. Plain text.');
+    const plan = await session.prompt('Plan a continuous story for these preferences: '+brief+'. Include each requested character in the plot and keep any supplied names. For bedtime, wind down to a quiet ending. Supply a title on the first line, then a concise outline of '+chapters+' consecutive scenes. Plain text.');
     const title = plan.split('\n')[0].replace(/^#+\s*|^Title:\s*/gi,'');
     const parts = [];
     for (let i=1;i<=chapters;i++) {
