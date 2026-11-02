@@ -28,13 +28,21 @@ function read(title, body, meta, panels = []) {
   $('title').textContent = title;
   $('body').textContent = body;
   $('meta').textContent = meta;
+  $('retell').open = false;
+  $('retell').hidden = panels.length !== 3;
   $('panels').replaceChildren();
   for (const panel of panels) {
     const frame = document.createElement('figure');
     const art = document.createElement('b');
     const caption = document.createElement('figcaption');
     art.textContent = panel.scene;
-    caption.textContent = panel.caption;
+    const hint = document.createElement('details');
+    const toggle = document.createElement('summary');
+    toggle.textContent = 'Reveal a hint';
+    const clue = document.createElement('p');
+    clue.textContent = panel.caption;
+    hint.append(toggle, clue);
+    caption.append(hint);
     frame.append(art, caption);
     $('panels').append(frame);
   }
@@ -81,14 +89,14 @@ form.onsubmit = async event => {
     let panels = [];
     let comicError = false;
     if (settings.comic) {
-      statusText('Drawing the emoji comic…');
+      statusText('Preparing the picture game…');
       try {
         const schema = {type:'array',minItems:3,maxItems:3,items:{type:'object',properties:{scene:{type:'string'},caption:{type:'string'}},required:['scene','caption']}};
-        panels = JSON.parse(await session.prompt('Retell the beginning, middle and ending in three panels. Each scene contains only 3–5 expressive emoji. Each caption is one short sentence.', {responseConstraint:schema}));
+        panels = JSON.parse(await session.prompt('Retell the beginning, middle and ending in three panels. Each scene contains only 3–5 expressive emoji. Each caption is a brief read-aloud hint about that specific event.', {responseConstraint:schema}));
       } catch { comicError = true; }
     }
     read(title, body, settings.moment+' • Ages '+settings.age+' • About '+Math.max(1,Math.round(body.trim().split(/\s+/).length/115))+' min',panels);
-    statusText(comicError ? 'Your story is ready. The comic could not be generated.' : 'Your story is ready.');
+    statusText(comicError ? 'Your story is ready. The picture game could not be generated.' : 'Your story is ready.');
   } catch { statusText('Story generation was interrupted. Check the model download and try again.'); }
   finally { session?.destroy(); button.disabled = false; }
 };
